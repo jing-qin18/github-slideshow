@@ -1,13 +1,157 @@
----
-layout: presentation
----
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>賓果賓果預測｜智慧選號分析</title>
+  <meta name="description" content="台灣賓果賓果開獎號碼預測與冷熱號分析工具，支援多種選號策略。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <div class="bg-atmosphere" aria-hidden="true">
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+    <div class="grid-glow"></div>
+  </div>
 
-{% for post in site.posts reversed %}
-	{% include slide.html %}
-	<div class="page-break"></div>
-{% endfor %}
-{% unless site.simple-slideshow %}
-{% if site.overview %}
-<section id="overview" class="step" {% for attr in site.overview-data %} data-{{attr[0]}}="{{attr[1]}}"{% endfor %}></section>
-{% endif %}
-{% endunless %}
+  <header class="site-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">80</span>
+      <span class="brand-name">賓果賓果預測</span>
+    </div>
+    <nav class="nav-links">
+      <a href="#predict">預測選號</a>
+      <a href="#stats">冷熱分析</a>
+      <a href="#trend">大小單雙</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" id="top">
+      <p class="brand-hero">賓果賓果預測</p>
+      <h1>下一期，從數據裡找手感</h1>
+      <p class="hero-lead">以模擬歷史開獎為基礎，結合熱號、冷號、遺漏與隨機策略，幫你快速產出一組可直接對獎的號碼。</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#predict">立刻預測</a>
+        <a class="btn btn-ghost" href="#stats">看冷熱號</a>
+      </div>
+    </section>
+
+    <section class="panel" id="predict">
+      <div class="section-head">
+        <h2>智慧選號</h2>
+        <p>選擇策略與組數，一鍵產生 1–80 的預測號碼。</p>
+      </div>
+
+      <div class="controls">
+        <label class="field">
+          <span>選號策略</span>
+          <select id="strategy">
+            <option value="balanced">均衡混合</option>
+            <option value="hot">熱號優先</option>
+            <option value="cold">冷號回歸</option>
+            <option value="gap">遺漏補號</option>
+            <option value="oddEven">單雙平衡</option>
+            <option value="bigSmall">大小平衡</option>
+            <option value="random">純隨機</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>每組號碼數</span>
+          <select id="pickCount">
+            <option value="10">10 碼</option>
+            <option value="15">15 碼</option>
+            <option value="20" selected>20 碼</option>
+            <option value="25">25 碼</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>產生組數</span>
+          <select id="setCount">
+            <option value="1" selected>1 組</option>
+            <option value="3">3 組</option>
+            <option value="5">5 組</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn-primary" id="predictBtn">產生預測</button>
+      </div>
+
+      <div class="prediction-meta" id="predictionMeta" hidden>
+        <span id="metaStrategy"></span>
+        <span id="metaTime"></span>
+      </div>
+      <div class="prediction-sets" id="predictionSets" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" id="stats">
+      <div class="section-head">
+        <h2>冷熱號分析</h2>
+        <p>依據近 100 期模擬開獎，觀察號碼出現頻率與目前遺漏。</p>
+      </div>
+
+      <div class="stat-summary" id="statSummary"></div>
+
+      <div class="board-wrap">
+        <div class="board-legend">
+          <span><i class="dot hot"></i>熱號</span>
+          <span><i class="dot warm"></i>中溫</span>
+          <span><i class="dot cold"></i>冷號</span>
+        </div>
+        <div class="number-board" id="numberBoard" role="list"></div>
+      </div>
+
+      <div class="rank-grid">
+        <div class="rank-block">
+          <h3>熱門 Top 10</h3>
+          <ol id="hotList"></ol>
+        </div>
+        <div class="rank-block">
+          <h3>冷門 Top 10</h3>
+          <ol id="coldList"></ol>
+        </div>
+        <div class="rank-block">
+          <h3>遺漏最久</h3>
+          <ol id="gapList"></ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="trend">
+      <div class="section-head">
+        <h2>大小 · 單雙趨勢</h2>
+        <p>近 30 期開獎的大小與單雙分佈，輔助判斷下一期方向。</p>
+      </div>
+      <div class="trend-grid">
+        <div class="trend-card">
+          <h3>大小</h3>
+          <div class="bars" id="bigSmallBars"></div>
+          <p class="trend-hint" id="bigSmallHint"></p>
+        </div>
+        <div class="trend-card">
+          <h3>單雙</h3>
+          <div class="bars" id="oddEvenBars"></div>
+          <p class="trend-hint" id="oddEvenHint"></p>
+        </div>
+      </div>
+      <div class="history">
+        <h3>最近開獎（模擬）</h3>
+        <div class="history-list" id="historyList"></div>
+      </div>
+    </section>
+
+    <section class="disclaimer panel">
+      <p>本站使用本地模擬歷史資料進行統計與選號示範，僅供娛樂參考，不代表真實開獎結果，亦無法保證中獎。請理性娛樂。</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>賓果賓果預測</span>
+    <span>1–80 · 每期 20 碼</span>
+  </footer>
+
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
