@@ -1,5 +1,7 @@
 #!/bin/sh
-
 set -e
-
-bundle exec jekyll serve "$@"
+cd "$(dirname "$0")/.."
+PORT="${PORT:-8000}"
+echo "==> 賓果賓果預測網站啟動中…"
+echo "==> 請用瀏覽器開啟: http://127.0.0.1:${PORT}/"
+exec python3 -m http.server "$PORT"
