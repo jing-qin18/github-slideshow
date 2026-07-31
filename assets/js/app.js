@@ -2,6 +2,17 @@
   const TOTAL_NUMBERS = 80;
   const DRAW_COUNT = 20;
   const HISTORY_SIZE = 100;
+  const STAKE = 25;
+
+  /** 台彩賓果星號玩法基本倍率（一般期，非加碼；單注 25 元） */
+  const STAR_TABLE = {
+    1: { 1: 2 },
+    2: { 2: 3 },
+    3: { 2: 2, 3: 20 },
+    4: { 2: 1, 3: 2, 4: 40 },
+    5: { 3: 2, 4: 20, 5: 300 },
+    6: { 3: 1, 4: 2, 5: 20, 6: 1000 },
+  };
 
   const strategyLabels = {
     balanced: "均衡混合",
@@ -13,7 +24,6 @@
     random: "純隨機",
   };
 
-  /** Deterministic PRNG for reproducible mock history */
   function mulberry32(seed) {
     let t = seed >>> 0;
     return () => {
@@ -155,7 +165,6 @@
       ].sort((a, b) => a - b);
     }
 
-    // balanced
     const hotPool = stats.byFreq.slice(0, 25).map((x) => x.n);
     const coldPool = stats.byFreq.slice(-25).map((x) => x.n);
     const gapPool = stats.byGap.slice(0, 25).map((x) => x.n);
@@ -172,6 +181,99 @@
     return [...picked].slice(0, count).sort((a, b) => a - b);
   }
 
+  function prizeForStar(star, hits) {
+    const table = STAR_TABLE[star];
+    if (!table) return 0;
+    return (table[hits] || 0) * STAKE;
+  }
+
+  function compareWithDraw(prediction, drawNumbers) {
+    const drawSet = new Set(drawNumbers);
+    const matched = prediction.filter((n) => drawSet.has(n));
+    const missed = prediction.filter((n) => !drawSet.has(n));
+    return { matched, missed, hitCount: matched.length };
+  }
+
+  /** 從前一期對獎：假設從預測池中優先選中獎號組成 N 星 */
+  function starBacktestFromHits(hitCount) {
+    return [2, 3, 4, 5, 6].map((star) => {
+      const hits = Math.min(star, hitCount);
+      const amount = prizeForStar(star, hits);
+      return {
+        star,
+        hits,
+        amount,
+        cost: STAKE,
+        profit: amount - STAKE,
+        fullHit: hits === star,
+      };
+    });
+  }
+
+  function pickStarNumbers(prediction, star, stats) {
+    const score = Object.fromEntries(stats.gaps.map((g) => [g.n, g.freq * 2 + g.gap]));
+    return prediction
+      .slice()
+      .sort((a, b) => (score[b] || 0) - (score[a] || 0) || a - b)
+      .slice(0, star)
+      .sort((a, b) => a - b);
+  }
+
+  function rollingStarStats(history, strategy, pickCount, lookback = 20) {
+    const stars = [2, 3, 4, 5, 6];
+    const totals = Object.fromEntries(
+      stars.map((s) => [s, { profit: 0, wins: 0, fullHits: 0, trials: 0, hitSum: 0 }])
+    );
+    let hitSum = 0;
+    let trials = 0;
+
+    const start = Math.max(15, history.length - lookback);
+    for (let i = start; i < history.length; i += 1) {
+      const past = history.slice(0, i);
+      const pastStats = analyze(past);
+      const pred = predict(strategy, pickCount, pastStats);
+      const { hitCount, matched } = compareWithDraw(pred, history[i].numbers);
+      hitSum += hitCount;
+      trials += 1;
+
+      stars.forEach((star) => {
+        // 用預測池中分數最高的 star 顆去對獎（貼近實務自選）
+        const pick = pickStarNumbers(pred, star, pastStats);
+        const pickHits = pick.filter((n) => matched.includes(n)).length;
+        const amount = prizeForStar(star, pickHits);
+        totals[star].profit += amount - STAKE;
+        totals[star].trials += 1;
+        totals[star].hitSum += pickHits;
+        if (amount > 0) totals[star].wins += 1;
+        if (pickHits === star) totals[star].fullHits += 1;
+      });
+    }
+
+    const ranked = stars
+      .map((star) => {
+        const t = totals[star];
+        const avgProfit = t.trials ? t.profit / t.trials : 0;
+        const winRate = t.trials ? t.wins / t.trials : 0;
+        return { star, ...t, avgProfit, winRate };
+      })
+      .sort((a, b) => b.avgProfit - a.avgProfit || b.winRate - a.winRate || a.star - b.star);
+
+    // 期望值接近時偏好 3 星（常見較划算玩法）
+    let recommended = ranked[0];
+    const near = ranked.filter((r) => Math.abs(r.avgProfit - ranked[0].avgProfit) < 5);
+    if (near.some((r) => r.star === 3)) {
+      recommended = near.find((r) => r.star === 3);
+    }
+
+    return {
+      avgHitCount: trials ? hitSum / trials : 0,
+      trials,
+      ranked,
+      recommended: recommended.star,
+      totals,
+    };
+  }
+
   function formatTime(date) {
     return date.toLocaleString("zh-TW", {
       month: "2-digit",
@@ -181,12 +283,19 @@
     });
   }
 
-  function renderBalls(numbers, className = "ball") {
+  function formatMoney(n) {
+    const sign = n > 0 ? "+" : "";
+    return `${sign}${n.toLocaleString("zh-TW")} 元`;
+  }
+
+  function renderBalls(numbers, className = "ball", matchedSet = null) {
     return numbers
       .map((n, i) => {
         const classes = [className];
         if (n >= 41) classes.push("big");
         if (n % 2 === 1) classes.push("odd");
+        if (matchedSet && matchedSet.has(n)) classes.push("hit");
+        if (matchedSet && !matchedSet.has(n)) classes.push("miss");
         return `<span class="${classes.join(" ")}" style="animation-delay:${i * 0.03}s">${String(n).padStart(2, "0")}</span>`;
       })
       .join("");
@@ -287,11 +396,97 @@
       .join("");
   }
 
-  function runPrediction(stats) {
-    const strategy = document.getElementById("strategy").value;
-    const pickCount = Number(document.getElementById("pickCount").value);
-    const setCount = Number(document.getElementById("setCount").value);
-    const setsEl = document.getElementById("predictionSets");
+  function renderBacktest(sets, history, stats, strategy, pickCount) {
+    const prev = history[history.length - 1];
+    const primary = sets[0].numbers;
+    const cmp = compareWithDraw(primary, prev.numbers);
+    const matchedSet = new Set(cmp.matched);
+    const starRows = starBacktestFromHits(cmp.hitCount);
+    const bestPrev = starRows.slice().sort((a, b) => b.profit - a.profit || a.star - b.star)[0];
+    const rolling = rollingStarStats(history, strategy, pickCount, 20);
+    const recommendStar = rolling.recommended;
+    const recommendNums = pickStarNumbers(primary, recommendStar, stats);
+    const rollingRec = rolling.ranked.find((r) => r.star === recommendStar);
+
+    const el = document.getElementById("backtestPanel");
+    el.hidden = false;
+
+    document.getElementById("prevPeriodLabel").textContent =
+      `第 ${prev.period.slice(-4)} 期 · ${formatTime(prev.time)}`;
+
+    document.getElementById("prevDrawBalls").innerHTML = renderBalls(prev.numbers, "ball");
+
+    document.getElementById("hitSummary").innerHTML = `
+      <div class="summary-chip">
+        <span>對中碼數</span>
+        <strong class="hit-num">${cmp.hitCount}</strong>
+        <small>/ ${primary.length} 碼</small>
+      </div>
+      <div class="summary-chip">
+        <span>前一期最佳回測</span>
+        <strong>${bestPrev.star} 星</strong>
+        <small>${formatMoney(bestPrev.profit)}（獎金 ${bestPrev.amount} 元）</small>
+      </div>
+      <div class="summary-chip recommend">
+        <span>建議下一期玩</span>
+        <strong>${recommendStar} 星</strong>
+        <small>近 ${rolling.trials} 期回測平均對中 ${rolling.avgHitCount.toFixed(1)} 碼</small>
+      </div>
+    `;
+
+    document.getElementById("matchedBalls").innerHTML = cmp.matched.length
+      ? renderBalls(cmp.matched, "ball")
+      : `<p class="empty-hint">前一期沒有對中預測號碼</p>`;
+
+    document.getElementById("starTable").innerHTML = `
+      <div class="star-table-head">
+        <span>星等</span><span>可中碼</span><span>獎金</span><span>損益（扣 25 元）</span>
+      </div>
+      ${starRows
+        .map((row) => {
+          const cls = row.profit > 0 ? "profit" : row.profit === 0 ? "even" : "loss";
+          const mark = row.star === bestPrev.star ? " best" : "";
+          return `<div class="star-table-row ${cls}${mark}">
+            <span>${row.star} 星</span>
+            <span>中 ${row.hits}</span>
+            <span>${row.amount.toLocaleString("zh-TW")} 元</span>
+            <span>${formatMoney(row.profit)}</span>
+          </div>`;
+        })
+        .join("")}
+    `;
+
+    document.getElementById("recommendBox").innerHTML = `
+      <div class="recommend-badge">${recommendStar} 星</div>
+      <div class="recommend-copy">
+        <h3>推薦玩 ${recommendStar} 星</h3>
+        <p>依「${strategyLabels[strategy]}」近 ${rolling.trials} 期回測，
+          ${recommendStar} 星平均每注損益 <strong>${formatMoney(Math.round(rollingRec.avgProfit))}</strong>，
+          有獎率 ${(rollingRec.winRate * 100).toFixed(0)}%，
+          全中率 ${((rollingRec.fullHits / Math.max(rollingRec.trials, 1)) * 100).toFixed(0)}%。</p>
+        <p class="recommend-note">建議自選號碼（來自本次預測）：</p>
+        <div class="balls">${renderBalls(recommendNums, "ball")}</div>
+        <p class="recommend-note">前一期對獎命中以綠框標示；獎金以台彩一般期基本倍率估算（單注 25 元，不含加碼）。</p>
+      </div>
+    `;
+
+    // 在預測組合上標示與前一期的對中碼
+    document.getElementById("predictionSets").innerHTML = sets
+      .map((set, idx) => {
+        const setCmp = compareWithDraw(set.numbers, prev.numbers);
+        return `
+        <article class="set-card" style="animation-delay:${idx * 0.08}s">
+          <h3>${set.label}<span class="set-hit">前一期對中 ${setCmp.hitCount} 碼</span></h3>
+          <div class="balls">${renderBalls(set.numbers, "ball", new Set(setCmp.matched))}</div>
+        </article>`;
+      })
+      .join("");
+  }
+
+  function runPrediction(history, stats) {
+    const strategy = document.getElementById("strategy").value || "balanced";
+    const pickCount = Number(document.getElementById("pickCount").value) || 20;
+    const setCount = Math.max(1, Number(document.getElementById("setCount").value) || 1);
     const meta = document.getElementById("predictionMeta");
 
     const sets = Array.from({ length: setCount }, (_, i) => ({
@@ -303,15 +498,7 @@
     document.getElementById("metaStrategy").textContent = `策略：${strategyLabels[strategy]}`;
     document.getElementById("metaTime").textContent = `產生時間：${new Date().toLocaleString("zh-TW")}`;
 
-    setsEl.innerHTML = sets
-      .map(
-        (set, idx) => `
-        <article class="set-card" style="animation-delay:${idx * 0.08}s">
-          <h3>${set.label}</h3>
-          <div class="balls">${renderBalls(set.numbers)}</div>
-        </article>`
-      )
-      .join("");
+    renderBacktest(sets, history, stats, strategy, pickCount);
   }
 
   function init() {
@@ -320,8 +507,8 @@
     renderStats(history, stats);
     renderTrend(stats);
 
-    document.getElementById("predictBtn").addEventListener("click", () => runPrediction(stats));
-    runPrediction(stats);
+    document.getElementById("predictBtn").addEventListener("click", () => runPrediction(history, stats));
+    runPrediction(history, stats);
   }
 
   if (document.readyState === "loading") {
