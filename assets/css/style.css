@@ -260,10 +260,88 @@ main {
 
 .controls {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
   margin-top: 1.5rem;
   align-items: end;
+}
+
+.controls .btn {
+  grid-column: span 1;
+}
+
+.field-check {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.85rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.field-check input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--gold);
+}
+
+.cost-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+}
+
+.cost-summary .cost-total {
+  color: var(--gold);
+}
+
+.candidate-pool {
+  margin-top: 1.15rem;
+  padding: 1rem;
+  border-radius: 14px;
+  background: rgba(7, 19, 31, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.candidate-pool h4 {
+  margin: 0 0 0.65rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ball.mini {
+  width: 1.85rem;
+  height: 1.85rem;
+  font-size: 0.75rem;
+}
+
+.ticket-card .ticket-line {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.match-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.55rem;
+}
+
+.match-label {
+  min-width: 5.5rem;
+  color: var(--gold);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.star-table-row.current {
+  background: rgba(46, 196, 182, 0.08);
 }
 
 .field {
@@ -818,10 +896,15 @@ main {
 
 @media (max-width: 860px) {
   .controls,
+  .cost-summary,
   .stat-summary,
   .rank-grid,
   .trend-grid {
     grid-template-columns: 1fr;
+  }
+
+  .controls .btn {
+    grid-column: auto;
   }
 
   .number-board {

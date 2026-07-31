@@ -119,66 +119,89 @@
     return [...chosen].sort((a, b) => a - b);
   }
 
-  function predict(strategy, count, stats) {
+  /** 產生候選號池，再從中抽出剛好 star 顆的一注 */
+  function buildCandidatePool(strategy, stats, poolSize = 24) {
     const all = Array.from({ length: TOTAL_NUMBERS }, (_, i) => i + 1);
     const freqMap = Object.fromEntries(stats.gaps.map((g) => [g.n, g.freq]));
     const gapMap = Object.fromEntries(stats.gaps.map((g) => [g.n, g.gap]));
+    const size = Math.min(Math.max(poolSize, 8), TOTAL_NUMBERS);
 
-    if (strategy === "random") {
-      return shuffle(all).slice(0, count).sort((a, b) => a - b);
-    }
-
-    if (strategy === "hot") {
-      return weightedPick(all, all.map((n) => freqMap[n] ** 1.6 + 0.5), count);
-    }
-
+    if (strategy === "random") return shuffle(all).slice(0, size).sort((a, b) => a - b);
+    if (strategy === "hot") return weightedPick(all, all.map((n) => freqMap[n] ** 1.6 + 0.5), size);
     if (strategy === "cold") {
       const maxF = Math.max(...all.map((n) => freqMap[n]));
-      return weightedPick(all, all.map((n) => (maxF - freqMap[n] + 1) ** 1.4), count);
+      return weightedPick(all, all.map((n) => (maxF - freqMap[n] + 1) ** 1.4), size);
     }
-
-    if (strategy === "gap") {
-      return weightedPick(all, all.map((n) => gapMap[n] ** 1.3 + 0.5), count);
-    }
+    if (strategy === "gap") return weightedPick(all, all.map((n) => gapMap[n] ** 1.3 + 0.5), size);
 
     if (strategy === "oddEven") {
       const odds = all.filter((n) => n % 2 === 1);
       const evens = all.filter((n) => n % 2 === 0);
-      const oddCount = Math.floor(count / 2);
-      const evenCount = count - oddCount;
+      const oddCount = Math.floor(size / 2);
       const weight = (n) => freqMap[n] * 0.6 + gapMap[n] * 0.4 + 1;
       return [
         ...weightedPick(odds, odds.map(weight), oddCount),
-        ...weightedPick(evens, evens.map(weight), evenCount),
+        ...weightedPick(evens, evens.map(weight), size - oddCount),
       ].sort((a, b) => a - b);
     }
 
     if (strategy === "bigSmall") {
       const smalls = all.filter((n) => n <= 40);
       const bigs = all.filter((n) => n >= 41);
-      const smallCount = Math.floor(count / 2);
-      const bigCount = count - smallCount;
+      const smallCount = Math.floor(size / 2);
       const weight = (n) => freqMap[n] * 0.55 + gapMap[n] * 0.45 + 1;
       return [
         ...weightedPick(smalls, smalls.map(weight), smallCount),
-        ...weightedPick(bigs, bigs.map(weight), bigCount),
+        ...weightedPick(bigs, bigs.map(weight), size - smallCount),
       ].sort((a, b) => a - b);
     }
 
-    const hotPool = stats.byFreq.slice(0, 25).map((x) => x.n);
-    const coldPool = stats.byFreq.slice(-25).map((x) => x.n);
-    const gapPool = stats.byGap.slice(0, 25).map((x) => x.n);
-    const mid = Math.max(1, Math.floor(count / 3));
-    const rest = count - mid * 2;
+    // balanced
+    const hotPool = stats.byFreq.slice(0, 30).map((x) => x.n);
+    const coldPool = stats.byFreq.slice(-30).map((x) => x.n);
+    const gapPool = stats.byGap.slice(0, 30).map((x) => x.n);
+    const a = Math.floor(size / 3);
+    const b = Math.floor(size / 3);
+    const c = size - a - b;
     const picked = new Set([
-      ...weightedPick(hotPool, hotPool.map((n) => freqMap[n] + 1), mid),
-      ...weightedPick(coldPool, coldPool.map((n) => 30 - freqMap[n]), mid),
-      ...weightedPick(gapPool, gapPool.map((n) => gapMap[n] + 1), rest),
+      ...weightedPick(hotPool, hotPool.map((n) => freqMap[n] + 1), a),
+      ...weightedPick(coldPool, coldPool.map((n) => 30 - freqMap[n]), b),
+      ...weightedPick(gapPool, gapPool.map((n) => gapMap[n] + 1), c),
     ]);
-    while (picked.size < count) {
-      picked.add(1 + Math.floor(Math.random() * TOTAL_NUMBERS));
+    while (picked.size < size) picked.add(1 + Math.floor(Math.random() * TOTAL_NUMBERS));
+    return [...picked].slice(0, size).sort((a, b) => a - b);
+  }
+
+  function scoreNumber(n, stats) {
+    const g = stats.gaps.find((x) => x.n === n);
+    return (g?.freq || 0) * 2 + (g?.gap || 0);
+  }
+
+  /** 從候選池抽出一注剛好 star 顆；可避開已用組合 */
+  function pickTicket(pool, star, stats, usedKeys = new Set(), rand = Math.random) {
+    const ranked = pool.slice().sort((a, b) => scoreNumber(b, stats) - scoreNumber(a, stats) || a - b);
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const weights = ranked.map((n, i) => 1 / (1 + i * 0.15) + (attempt > 10 ? rand() : 0));
+      const pick = weightedPick(ranked, weights, star, rand);
+      const key = pick.join("-");
+      if (!usedKeys.has(key)) {
+        usedKeys.add(key);
+        return pick;
+      }
     }
-    return [...picked].slice(0, count).sort((a, b) => a - b);
+    const fallback = shuffle(pool, rand).slice(0, star).sort((a, b) => a - b);
+    usedKeys.add(fallback.join("-"));
+    return fallback;
+  }
+
+  function generateTickets(strategy, star, setCount, stats) {
+    const pool = buildCandidatePool(strategy, stats, Math.max(star * 4, 18));
+    const used = new Set();
+    const tickets = Array.from({ length: setCount }, (_, i) => ({
+      label: `第 ${i + 1} 組`,
+      numbers: pickTicket(pool, star, stats, used),
+    }));
+    return { pool, tickets };
   }
 
   function prizeForStar(star, hits) {
@@ -187,91 +210,49 @@
     return (table[hits] || 0) * STAKE;
   }
 
-  function compareWithDraw(prediction, drawNumbers) {
+  function compareTicket(ticketNumbers, drawNumbers) {
     const drawSet = new Set(drawNumbers);
-    const matched = prediction.filter((n) => drawSet.has(n));
-    const missed = prediction.filter((n) => !drawSet.has(n));
-    return { matched, missed, hitCount: matched.length };
+    const matched = ticketNumbers.filter((n) => drawSet.has(n));
+    return { matched, hitCount: matched.length, amount: prizeForStar(ticketNumbers.length, matched.length) };
   }
 
-  /** 從前一期對獎：假設從預測池中優先選中獎號組成 N 星 */
-  function starBacktestFromHits(hitCount) {
-    return [2, 3, 4, 5, 6].map((star) => {
-      const hits = Math.min(star, hitCount);
-      const amount = prizeForStar(star, hits);
-      return {
-        star,
-        hits,
-        amount,
-        cost: STAKE,
-        profit: amount - STAKE,
-        fullHit: hits === star,
-      };
-    });
-  }
-
-  function pickStarNumbers(prediction, star, stats) {
-    const score = Object.fromEntries(stats.gaps.map((g) => [g.n, g.freq * 2 + g.gap]));
-    return prediction
-      .slice()
-      .sort((a, b) => (score[b] || 0) - (score[a] || 0) || a - b)
-      .slice(0, star)
-      .sort((a, b) => a - b);
-  }
-
-  function rollingStarStats(history, strategy, pickCount, lookback = 20) {
+  function rollingStarStats(history, strategy, lookback = 20) {
     const stars = [2, 3, 4, 5, 6];
     const totals = Object.fromEntries(
-      stars.map((s) => [s, { profit: 0, wins: 0, fullHits: 0, trials: 0, hitSum: 0 }])
+      stars.map((s) => [s, { profit: 0, wins: 0, fullHits: 0, trials: 0 }])
     );
-    let hitSum = 0;
-    let trials = 0;
 
     const start = Math.max(15, history.length - lookback);
     for (let i = start; i < history.length; i += 1) {
-      const past = history.slice(0, i);
-      const pastStats = analyze(past);
-      const pred = predict(strategy, pickCount, pastStats);
-      const { hitCount, matched } = compareWithDraw(pred, history[i].numbers);
-      hitSum += hitCount;
-      trials += 1;
-
+      const pastStats = analyze(history.slice(0, i));
       stars.forEach((star) => {
-        // 用預測池中分數最高的 star 顆去對獎（貼近實務自選）
-        const pick = pickStarNumbers(pred, star, pastStats);
-        const pickHits = pick.filter((n) => matched.includes(n)).length;
-        const amount = prizeForStar(star, pickHits);
+        const { tickets } = generateTickets(strategy, star, 1, pastStats);
+        const result = compareTicket(tickets[0].numbers, history[i].numbers);
+        const amount = result.amount;
         totals[star].profit += amount - STAKE;
         totals[star].trials += 1;
-        totals[star].hitSum += pickHits;
         if (amount > 0) totals[star].wins += 1;
-        if (pickHits === star) totals[star].fullHits += 1;
+        if (result.hitCount === star) totals[star].fullHits += 1;
       });
     }
 
     const ranked = stars
       .map((star) => {
         const t = totals[star];
-        const avgProfit = t.trials ? t.profit / t.trials : 0;
-        const winRate = t.trials ? t.wins / t.trials : 0;
-        return { star, ...t, avgProfit, winRate };
+        return {
+          star,
+          ...t,
+          avgProfit: t.trials ? t.profit / t.trials : 0,
+          winRate: t.trials ? t.wins / t.trials : 0,
+        };
       })
       .sort((a, b) => b.avgProfit - a.avgProfit || b.winRate - a.winRate || a.star - b.star);
 
-    // 期望值接近時偏好 3 星（常見較划算玩法）
     let recommended = ranked[0];
-    const near = ranked.filter((r) => Math.abs(r.avgProfit - ranked[0].avgProfit) < 5);
-    if (near.some((r) => r.star === 3)) {
-      recommended = near.find((r) => r.star === 3);
-    }
+    const near = ranked.filter((r) => Math.abs(r.avgProfit - ranked[0].avgProfit) < 8);
+    if (near.some((r) => r.star === 3)) recommended = near.find((r) => r.star === 3);
 
-    return {
-      avgHitCount: trials ? hitSum / trials : 0,
-      trials,
-      ranked,
-      recommended: recommended.star,
-      totals,
-    };
+    return { ranked, recommended: recommended.star, trials: ranked[0]?.trials || 0 };
   }
 
   function formatTime(date) {
@@ -294,8 +275,10 @@
         const classes = [className];
         if (n >= 41) classes.push("big");
         if (n % 2 === 1) classes.push("odd");
-        if (matchedSet && matchedSet.has(n)) classes.push("hit");
-        if (matchedSet && !matchedSet.has(n)) classes.push("miss");
+        if (matchedSet) {
+          if (matchedSet.has(n)) classes.push("hit");
+          else classes.push("miss");
+        }
         return `<span class="${classes.join(" ")}" style="animation-delay:${i * 0.03}s">${String(n).padStart(2, "0")}</span>`;
       })
       .join("");
@@ -313,15 +296,13 @@
     const min = Math.min(...freqs);
     const max = Math.max(...freqs);
 
-    const summary = document.getElementById("statSummary");
-    summary.innerHTML = `
+    document.getElementById("statSummary").innerHTML = `
       <div class="summary-chip"><span>模擬期數</span><strong>${history.length}</strong></div>
       <div class="summary-chip"><span>平均出現</span><strong>${(DRAW_COUNT * history.length / TOTAL_NUMBERS).toFixed(1)}</strong></div>
       <div class="summary-chip"><span>最熱號碼</span><strong>${String(stats.byFreq[0].n).padStart(2, "0")}</strong></div>
     `;
 
-    const board = document.getElementById("numberBoard");
-    board.innerHTML = stats.gaps
+    document.getElementById("numberBoard").innerHTML = stats.gaps
       .map((g) => {
         const cls = heatClass(g.freq, min, max);
         return `<div class="num-cell ${cls}" role="listitem" aria-label="號碼 ${g.n}">
@@ -347,7 +328,6 @@
     const totalBS = stats.big + stats.small;
     const totalOE = stats.odd + stats.even;
     const pct = (v, t) => (t ? Math.round((v / t) * 100) : 0);
-
     const bigPct = pct(stats.big, totalBS);
     const smallPct = pct(stats.small, totalBS);
     const oddPct = pct(stats.odd, totalOE);
@@ -396,109 +376,148 @@
       .join("");
   }
 
-  function renderBacktest(sets, history, stats, strategy, pickCount) {
+  function getForm() {
+    const autoStar = document.getElementById("autoStar").checked;
+    return {
+      strategy: document.getElementById("strategy").value || "balanced",
+      star: Number(document.getElementById("starCount").value) || 3,
+      autoStar,
+      setCount: Math.max(1, Number(document.getElementById("setCount").value) || 5),
+      periods: Math.max(1, Number(document.getElementById("periodCount").value) || 1),
+      multiplier: Math.max(1, Number(document.getElementById("multiplier").value) || 1),
+    };
+  }
+
+  function renderTickets(history, stats) {
+    const form = getForm();
+    const rolling = rollingStarStats(history, form.strategy, 20);
+    const star = form.autoStar ? rolling.recommended : form.star;
+    if (form.autoStar) {
+      document.getElementById("starCount").value = String(star);
+    }
+
+    const { pool, tickets } = generateTickets(form.strategy, star, form.setCount, stats);
     const prev = history[history.length - 1];
-    const primary = sets[0].numbers;
-    const cmp = compareWithDraw(primary, prev.numbers);
-    const matchedSet = new Set(cmp.matched);
-    const starRows = starBacktestFromHits(cmp.hitCount);
-    const bestPrev = starRows.slice().sort((a, b) => b.profit - a.profit || a.star - b.star)[0];
-    const rolling = rollingStarStats(history, strategy, pickCount, 20);
-    const recommendStar = rolling.recommended;
-    const recommendNums = pickStarNumbers(primary, recommendStar, stats);
-    const rollingRec = rolling.ranked.find((r) => r.star === recommendStar);
+    const ticketResults = tickets.map((t) => {
+      const cmp = compareTicket(t.numbers, prev.numbers);
+      return { ...t, ...cmp };
+    });
 
-    const el = document.getElementById("backtestPanel");
-    el.hidden = false;
+    const singleCost = STAKE * form.multiplier;
+    const totalCost = singleCost * form.setCount * form.periods;
+    const prevPrizePerPeriod = ticketResults.reduce((s, t) => s + t.amount, 0) * form.multiplier;
+    const prevProfitOnePeriod = prevPrizePerPeriod - singleCost * form.setCount;
 
+    document.getElementById("predictionMeta").hidden = false;
+    document.getElementById("metaStrategy").textContent =
+      `玩法：${star} 星 · 策略：${strategyLabels[form.strategy]}${form.autoStar ? "（自動推薦星等）" : ""}`;
+    document.getElementById("metaTime").textContent = `產生時間：${new Date().toLocaleString("zh-TW")}`;
+
+    document.getElementById("costSummary").innerHTML = `
+      <div class="summary-chip"><span>投注內容</span><strong>${star} 星 × ${form.setCount} 組</strong><small>連買 ${form.periods} 期 · ${form.multiplier} 倍</small></div>
+      <div class="summary-chip"><span>單注金額</span><strong>${singleCost.toLocaleString("zh-TW")} 元</strong><small>25 × ${form.multiplier} 倍</small></div>
+      <div class="summary-chip"><span>總投注金額</span><strong class="cost-total">${totalCost.toLocaleString("zh-TW")} 元</strong><small>${form.setCount} 組 × ${form.periods} 期 × ${form.multiplier} 倍</small></div>
+    `;
+
+    document.getElementById("candidatePool").innerHTML = `
+      <h4>候選號池（參考，不用全買）</h4>
+      <div class="balls">${renderBalls(pool, "ball mini")}</div>
+    `;
+
+    document.getElementById("predictionSets").innerHTML = ticketResults
+      .map((t, idx) => {
+        const matchedSet = new Set(t.matched);
+        const prizeText = t.amount > 0
+          ? `前一期回測：中 ${t.hitCount} → ${t.amount * form.multiplier} 元`
+          : `前一期回測：中 ${t.hitCount} → 未中獎`;
+        return `
+        <article class="set-card ticket-card" style="animation-delay:${idx * 0.05}s">
+          <h3>
+            <span>${t.label} · ${star} 星</span>
+            <span class="set-hit">${prizeText}</span>
+          </h3>
+          <div class="balls">${renderBalls(t.numbers, "ball", matchedSet)}</div>
+          <p class="ticket-line">可直接跟彩券行說：買 ${star} 星，號碼 ${t.numbers.map((n) => String(n).padStart(2, "0")).join(" ")}，${form.multiplier} 倍，連 ${form.periods} 期</p>
+        </article>`;
+      })
+      .join("");
+
+    const rollingRec = rolling.ranked.find((r) => r.star === rolling.recommended);
+    document.getElementById("backtestPanel").hidden = false;
     document.getElementById("prevPeriodLabel").textContent =
       `第 ${prev.period.slice(-4)} 期 · ${formatTime(prev.time)}`;
+    document.getElementById("prevDrawBalls").innerHTML = renderBalls(prev.numbers, "ball mini");
 
-    document.getElementById("prevDrawBalls").innerHTML = renderBalls(prev.numbers, "ball");
-
+    const winSets = ticketResults.filter((t) => t.amount > 0).length;
     document.getElementById("hitSummary").innerHTML = `
       <div class="summary-chip">
-        <span>對中碼數</span>
-        <strong class="hit-num">${cmp.hitCount}</strong>
-        <small>/ ${primary.length} 碼</small>
+        <span>前一期有獎組數</span>
+        <strong class="hit-num">${winSets}</strong>
+        <small>/ ${form.setCount} 組</small>
       </div>
       <div class="summary-chip">
-        <span>前一期最佳回測</span>
-        <strong>${bestPrev.star} 星</strong>
-        <small>${formatMoney(bestPrev.profit)}（獎金 ${bestPrev.amount} 元）</small>
+        <span>前一期回測獎金</span>
+        <strong>${prevPrizePerPeriod.toLocaleString("zh-TW")} 元</strong>
+        <small>以本次 ${form.setCount} 組、${form.multiplier} 倍估算一期</small>
       </div>
-      <div class="summary-chip recommend">
-        <span>建議下一期玩</span>
-        <strong>${recommendStar} 星</strong>
-        <small>近 ${rolling.trials} 期回測平均對中 ${rolling.avgHitCount.toFixed(1)} 碼</small>
+      <div class="summary-chip ${prevProfitOnePeriod >= 0 ? "recommend" : ""}">
+        <span>前一期回測損益</span>
+        <strong>${formatMoney(prevProfitOnePeriod)}</strong>
+        <small>尚未乘上連買期數</small>
       </div>
     `;
 
-    document.getElementById("matchedBalls").innerHTML = cmp.matched.length
-      ? renderBalls(cmp.matched, "ball")
-      : `<p class="empty-hint">前一期沒有對中預測號碼</p>`;
+    document.getElementById("matchedBalls").innerHTML = ticketResults
+      .map((t) => {
+        if (!t.matched.length) {
+          return `<div class="match-row"><span class="match-label">${t.label}</span><span class="empty-hint">沒對中</span></div>`;
+        }
+        return `<div class="match-row"><span class="match-label">${t.label} 中 ${t.hitCount}</span><div class="balls">${renderBalls(t.matched, "ball")}</div></div>`;
+      })
+      .join("");
+
+    const starRows = [2, 3, 4, 5, 6].map((s) => {
+      const row = rolling.ranked.find((r) => r.star === s);
+      return {
+        star: s,
+        avgProfit: row?.avgProfit || 0,
+        winRate: row?.winRate || 0,
+        fullRate: row ? row.fullHits / Math.max(row.trials, 1) : 0,
+      };
+    });
 
     document.getElementById("starTable").innerHTML = `
       <div class="star-table-head">
-        <span>星等</span><span>可中碼</span><span>獎金</span><span>損益（扣 25 元）</span>
+        <span>星等</span><span>有獎率</span><span>全中率</span><span>平均損益／注</span>
       </div>
       ${starRows
         .map((row) => {
-          const cls = row.profit > 0 ? "profit" : row.profit === 0 ? "even" : "loss";
-          const mark = row.star === bestPrev.star ? " best" : "";
-          return `<div class="star-table-row ${cls}${mark}">
-            <span>${row.star} 星</span>
-            <span>中 ${row.hits}</span>
-            <span>${row.amount.toLocaleString("zh-TW")} 元</span>
-            <span>${formatMoney(row.profit)}</span>
+          const cls = row.avgProfit > 0 ? "profit" : row.avgProfit === 0 ? "even" : "loss";
+          const mark = row.star === rolling.recommended ? " best" : "";
+          const current = row.star === star ? " current" : "";
+          return `<div class="star-table-row ${cls}${mark}${current}">
+            <span>${row.star} 星${row.star === star ? " ←本次" : ""}</span>
+            <span>${(row.winRate * 100).toFixed(0)}%</span>
+            <span>${(row.fullRate * 100).toFixed(0)}%</span>
+            <span>${formatMoney(Math.round(row.avgProfit))}</span>
           </div>`;
         })
         .join("")}
     `;
 
     document.getElementById("recommendBox").innerHTML = `
-      <div class="recommend-badge">${recommendStar} 星</div>
+      <div class="recommend-badge">${rolling.recommended} 星</div>
       <div class="recommend-copy">
-        <h3>推薦玩 ${recommendStar} 星</h3>
-        <p>依「${strategyLabels[strategy]}」近 ${rolling.trials} 期回測，
-          ${recommendStar} 星平均每注損益 <strong>${formatMoney(Math.round(rollingRec.avgProfit))}</strong>，
-          有獎率 ${(rollingRec.winRate * 100).toFixed(0)}%，
-          全中率 ${((rollingRec.fullHits / Math.max(rollingRec.trials, 1)) * 100).toFixed(0)}%。</p>
-        <p class="recommend-note">建議自選號碼（來自本次預測）：</p>
-        <div class="balls">${renderBalls(recommendNums, "ball")}</div>
-        <p class="recommend-note">前一期對獎命中以綠框標示；獎金以台彩一般期基本倍率估算（單注 25 元，不含加碼）。</p>
+        <h3>資料建議：玩 ${rolling.recommended} 星</h3>
+        <p>依「${strategyLabels[form.strategy]}」近 ${rolling.trials} 期回測，
+          ${rolling.recommended} 星平均每注損益 <strong>${formatMoney(Math.round(rollingRec.avgProfit))}</strong>，
+          有獎率 ${(rollingRec.winRate * 100).toFixed(0)}%。</p>
+        <p>你目前設定是 <strong>${star} 星 × ${form.setCount} 組 × ${form.periods} 期 × ${form.multiplier} 倍</strong>，
+          總金額 <strong>${totalCost.toLocaleString("zh-TW")} 元</strong>。
+          ${form.periods > 1 ? `同一組號碼會連買 ${form.periods} 期（約 ${form.periods * 5} 分鐘）。` : "只買一期。"}</p>
+        <p class="recommend-note">每組剛好 ${star} 個號碼，可直接照「第 N 組」跟彩券行下單；綠框是前一期有對中的號碼。</p>
       </div>
     `;
-
-    // 在預測組合上標示與前一期的對中碼
-    document.getElementById("predictionSets").innerHTML = sets
-      .map((set, idx) => {
-        const setCmp = compareWithDraw(set.numbers, prev.numbers);
-        return `
-        <article class="set-card" style="animation-delay:${idx * 0.08}s">
-          <h3>${set.label}<span class="set-hit">前一期對中 ${setCmp.hitCount} 碼</span></h3>
-          <div class="balls">${renderBalls(set.numbers, "ball", new Set(setCmp.matched))}</div>
-        </article>`;
-      })
-      .join("");
-  }
-
-  function runPrediction(history, stats) {
-    const strategy = document.getElementById("strategy").value || "balanced";
-    const pickCount = Number(document.getElementById("pickCount").value) || 20;
-    const setCount = Math.max(1, Number(document.getElementById("setCount").value) || 1);
-    const meta = document.getElementById("predictionMeta");
-
-    const sets = Array.from({ length: setCount }, (_, i) => ({
-      label: `預測組合 ${i + 1}`,
-      numbers: predict(strategy, pickCount, stats),
-    }));
-
-    meta.hidden = false;
-    document.getElementById("metaStrategy").textContent = `策略：${strategyLabels[strategy]}`;
-    document.getElementById("metaTime").textContent = `產生時間：${new Date().toLocaleString("zh-TW")}`;
-
-    renderBacktest(sets, history, stats, strategy, pickCount);
   }
 
   function init() {
@@ -507,8 +526,17 @@
     renderStats(history, stats);
     renderTrend(stats);
 
-    document.getElementById("predictBtn").addEventListener("click", () => runPrediction(history, stats));
-    runPrediction(history, stats);
+    const rerun = () => renderTickets(history, stats);
+    document.getElementById("predictBtn").addEventListener("click", rerun);
+    document.getElementById("autoStar").addEventListener("change", (e) => {
+      document.getElementById("starCount").disabled = e.target.checked;
+      rerun();
+    });
+    ["strategy", "starCount", "setCount", "periodCount", "multiplier"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", rerun);
+    });
+
+    rerun();
   }
 
   if (document.readyState === "loading") {
