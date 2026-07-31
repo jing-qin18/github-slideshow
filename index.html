@@ -1,13 +1,1692 @@
----
-layout: presentation
----
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>賓果賓果預測｜可直接下單的星號選號</title>
+  <meta name="description" content="台灣賓果賓果星號玩法選號：依 2–6 星產出可買組數，支援連買期數與倍率，並回測前一期中獎金額。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+:root {
+  --ink: #07131f;
+  --ink-soft: #0e2438;
+  --panel: rgba(12, 34, 52, 0.72);
+  --line: rgba(255, 214, 140, 0.18);
+  --text: #f4efe6;
+  --muted: #a8b7c7;
+  --gold: #f0b429;
+  --gold-deep: #d4890b;
+  --teal: #2ec4b6;
+  --coral: #ff6b4a;
+  --hot: #ff6b4a;
+  --warm: #f0b429;
+  --cold: #4d8cff;
+  --radius: 18px;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  --font-display: "Outfit", "Noto Sans TC", sans-serif;
+  --font-body: "Noto Sans TC", "Outfit", sans-serif;
+}
 
-{% for post in site.posts reversed %}
-	{% include slide.html %}
-	<div class="page-break"></div>
-{% endfor %}
-{% unless site.simple-slideshow %}
-{% if site.overview %}
-<section id="overview" class="step" {% for attr in site.overview-data %} data-{{attr[0]}}="{{attr[1]}}"{% endfor %}></section>
-{% endif %}
-{% endunless %}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-body);
+  color: var(--text);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(46, 196, 182, 0.18), transparent 55%),
+    radial-gradient(900px 500px at 90% 0%, rgba(240, 180, 41, 0.16), transparent 50%),
+    linear-gradient(165deg, #06101a 0%, #0b1c2d 45%, #10263a 100%);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.bg-atmosphere {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.55;
+  animation: drift 14s ease-in-out infinite alternate;
+}
+
+.orb-a {
+  width: 420px;
+  height: 420px;
+  top: -80px;
+  left: -60px;
+  background: radial-gradient(circle, rgba(46, 196, 182, 0.55), transparent 70%);
+}
+
+.orb-b {
+  width: 360px;
+  height: 360px;
+  right: -40px;
+  top: 20vh;
+  background: radial-gradient(circle, rgba(255, 107, 74, 0.35), transparent 70%);
+  animation-delay: -4s;
+}
+
+.grid-glow {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+  opacity: 0.45;
+}
+
+@keyframes drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(30px, 40px, 0) scale(1.08); }
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--gold), var(--coral));
+  color: #1a1005;
+  font-size: 0.85rem;
+  box-shadow: 0 0 0 3px rgba(240, 180, 41, 0.25);
+  animation: pulse-ring 2.8s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(240, 180, 41, 0.2); }
+  50% { box-shadow: 0 0 0 8px rgba(240, 180, 41, 0.08); }
+}
+
+.nav-links {
+  display: flex;
+  gap: 1.25rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.nav-links a:hover {
+  color: var(--gold);
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+}
+
+.hero {
+  min-height: min(78vh, 720px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3rem 0 4rem;
+  animation: fade-up 0.9s ease both;
+}
+
+.brand-hero {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: clamp(2.8rem, 8vw, 5.5rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.05;
+  background: linear-gradient(120deg, #fff6df 10%, var(--gold) 45%, var(--coral) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 10px 40px rgba(240, 180, 41, 0.15);
+}
+
+.hero h1 {
+  margin: 0;
+  max-width: 14ch;
+  font-size: clamp(1.45rem, 3.2vw, 2.15rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.hero-lead {
+  max-width: 36rem;
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 2rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.85rem 1.45rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+  color: #1a1005;
+  box-shadow: 0 12px 30px rgba(240, 180, 41, 0.28);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 16px 36px rgba(240, 180, 41, 0.38);
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.panel {
+  margin-top: 1.5rem;
+  padding: 1.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow);
+  animation: fade-up 0.8s ease both;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  letter-spacing: 0.03em;
+}
+
+.section-head p {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+  align-items: end;
+}
+
+.controls .btn {
+  grid-column: span 1;
+}
+
+.field-check {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.85rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.field-check input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--gold);
+}
+
+.cost-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+}
+
+.cost-summary .cost-total {
+  color: var(--gold);
+}
+
+.candidate-pool {
+  margin-top: 1.15rem;
+  padding: 1rem;
+  border-radius: 14px;
+  background: rgba(7, 19, 31, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.candidate-pool h4 {
+  margin: 0 0 0.65rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ball.mini {
+  width: 1.85rem;
+  height: 1.85rem;
+  font-size: 0.75rem;
+}
+
+.ticket-card .ticket-line {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.match-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.55rem;
+}
+
+.match-label {
+  min-width: 5.5rem;
+  color: var(--gold);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.star-table-row.current {
+  background: rgba(46, 196, 182, 0.08);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.field select {
+  appearance: none;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(7, 19, 31, 0.75) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23f0b429' d='M6 8L0 0h12z'/%3E%3C/svg%3E") no-repeat right 0.9rem center;
+  color: var(--text);
+  padding: 0.75rem 2.2rem 0.75rem 0.9rem;
+  font: inherit;
+}
+
+.prediction-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-top: 1.25rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.prediction-sets {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.set-card {
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  animation: pop-in 0.45s ease both;
+}
+
+.set-card h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  color: var(--gold);
+  font-weight: 700;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.set-hit {
+  color: var(--teal);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.balls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.ball {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #1a1005;
+  background: linear-gradient(145deg, #ffe29a, var(--gold));
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.12), 0 6px 14px rgba(0, 0, 0, 0.2);
+  animation: ball-in 0.4s ease both;
+}
+
+.ball.big { background: linear-gradient(145deg, #ffd0c4, var(--coral)); }
+.ball.odd { outline: 2px solid rgba(46, 196, 182, 0.55); outline-offset: 1px; }
+.ball.hit {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(46, 196, 182, 0.2), inset 0 -3px 0 rgba(0, 0, 0, 0.12);
+}
+.ball.miss { opacity: 0.42; }
+
+.backtest-block {
+  margin-top: 1.5rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.backtest-block > h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+}
+
+.backtest-lead {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.prev-draw {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 14px;
+  background: rgba(7, 19, 31, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.prev-draw-label {
+  display: block;
+  margin-bottom: 0.65rem;
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.hit-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.hit-summary .summary-chip small {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.hit-summary .hit-num {
+  color: var(--teal);
+}
+
+.hit-summary .recommend {
+  border-color: rgba(240, 180, 41, 0.35);
+  background: rgba(240, 180, 41, 0.08);
+}
+
+.matched-block {
+  margin-top: 1.1rem;
+}
+
+.matched-block h4,
+.star-backtest h4 {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.empty-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.star-backtest {
+  margin-top: 1.15rem;
+}
+
+.star-table {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.star-table-head,
+.star-table-row {
+  display: grid;
+  grid-template-columns: 4rem 4.5rem 1fr 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
+.star-table-head {
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding-bottom: 0.2rem;
+}
+
+.star-table-row {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.star-table-row.profit { color: #7dffc8; }
+.star-table-row.loss { color: #ff9b8a; }
+.star-table-row.even { color: var(--muted); }
+.star-table-row.best {
+  border-color: rgba(240, 180, 41, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(240, 180, 41, 0.15);
+}
+
+.recommend-box {
+  margin-top: 1.25rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  align-items: start;
+  padding: 1.1rem;
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(240, 180, 41, 0.12), rgba(46, 196, 182, 0.08));
+  border: 1px solid rgba(240, 180, 41, 0.28);
+}
+
+.recommend-badge {
+  display: grid;
+  place-items: center;
+  min-width: 5.2rem;
+  min-height: 5.2rem;
+  border-radius: 18px;
+  background: linear-gradient(145deg, var(--gold), var(--coral));
+  color: #1a1005;
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 800;
+  box-shadow: 0 12px 28px rgba(240, 180, 41, 0.25);
+  animation: pulse-ring 2.8s ease-in-out infinite;
+}
+
+.recommend-copy h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.recommend-copy p {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.recommend-copy strong {
+  color: var(--gold);
+}
+
+.recommend-note {
+  margin-top: 0.75rem !important;
+}
+
+@media (max-width: 860px) {
+  .hit-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .recommend-box {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .star-table-head,
+  .star-table-row {
+    grid-template-columns: 3.2rem 3.5rem 1fr 1fr;
+    font-size: 0.82rem;
+  }
+}
+
+.stat-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-top: 1.35rem;
+}
+
+.summary-chip {
+  padding: 1rem;
+  border-radius: 14px;
+  background: rgba(7, 19, 31, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.summary-chip strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  margin-top: 0.2rem;
+}
+
+.summary-chip span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.board-wrap {
+  margin-top: 1.5rem;
+}
+
+.board-legend {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.dot {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
+
+.dot.hot { background: var(--hot); }
+.dot.warm { background: var(--warm); }
+.dot.cold { background: var(--cold); }
+
+.number-board {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.num-cell {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(0.75rem, 1.8vw, 0.95rem);
+  color: #08131f;
+  cursor: default;
+  transition: transform 0.15s ease;
+  position: relative;
+}
+
+.num-cell:hover {
+  transform: scale(1.06);
+  z-index: 1;
+}
+
+.num-cell.hot { background: linear-gradient(145deg, #ff8f75, var(--hot)); }
+.num-cell.warm { background: linear-gradient(145deg, #ffd978, var(--warm)); }
+.num-cell.cold { background: linear-gradient(145deg, #8fb6ff, var(--cold)); color: #07131f; }
+
+.num-cell .tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: #041018;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.num-cell:hover .tip {
+  opacity: 1;
+}
+
+.rank-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.rank-block {
+  padding: 1rem;
+  border-radius: 14px;
+  background: rgba(7, 19, 31, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rank-block h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: var(--gold);
+}
+
+.rank-block ol {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+}
+
+.rank-block li {
+  margin: 0.35rem 0;
+}
+
+.rank-block em {
+  color: var(--text);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.trend-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1.35rem;
+}
+
+.trend-card {
+  padding: 1.1rem;
+  border-radius: 14px;
+  background: rgba(7, 19, 31, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.trend-card h3 {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+}
+
+.bars {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 3rem 1fr 3.5rem;
+  gap: 0.65rem;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.bar-track {
+  height: 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--teal), var(--gold));
+  transition: width 0.8s ease;
+}
+
+.bar-fill.alt {
+  background: linear-gradient(90deg, var(--coral), var(--gold));
+}
+
+.trend-hint {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.history {
+  margin-top: 1.5rem;
+}
+
+.history h3 {
+  margin: 0 0 0.85rem;
+  font-size: 1.05rem;
+}
+
+.history-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.history-item .period {
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.history-item .mini-balls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.mini-ball {
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: var(--font-display);
+  background: rgba(240, 180, 41, 0.9);
+  color: #1a1005;
+}
+
+.disclaimer {
+  margin-top: 1.5rem;
+  padding: 1.1rem 1.4rem;
+}
+
+.disclaimer p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.site-footer {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem 2.5rem;
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes ball-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 860px) {
+  .controls,
+  .cost-summary,
+  .stat-summary,
+  .rank-grid,
+  .trend-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .controls .btn {
+    grid-column: auto;
+  }
+
+  .number-board {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .nav-links {
+    display: none;
+  }
+
+  .history-item {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .number-board {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .hero {
+    min-height: auto;
+    padding-top: 2rem;
+  }
+
+  .panel {
+    padding: 1.2rem;
+  }
+}
+
+  </style>
+</head>
+<body>
+  <div class="bg-atmosphere" aria-hidden="true">
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+    <div class="grid-glow"></div>
+  </div>
+
+  <header class="site-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">80</span>
+      <span class="brand-name">賓果賓果預測</span>
+    </div>
+    <nav class="nav-links">
+      <a href="#predict">投注單</a>
+      <a href="#backtestPanel">回測星等</a>
+      <a href="#stats">冷熱分析</a>
+      <a href="#trend">大小單雙</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" id="top">
+      <p class="brand-hero">賓果賓果預測</p>
+      <h1>按星等出單，拿去彩券行就能買</h1>
+      <p class="hero-lead">賓果星號玩法一次只買固定顆數。這裡直接產出 2–6 星投注單，可選 5／10 組、連買 5／10 期與倍率，並回測前一期中獎數與金額。</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#predict">產生投注單</a>
+        <a class="btn btn-ghost" href="#backtestPanel">看回測推薦</a>
+      </div>
+    </section>
+
+    <section class="panel" id="predict">
+      <div class="section-head">
+        <h2>星號投注單</h2>
+        <p>選玩法星等、組數、連買期數；每一組剛好對應該星等的號碼數。</p>
+      </div>
+
+      <div class="controls">
+        <label class="field">
+          <span>玩法星等</span>
+          <select id="starCount">
+            <option value="2">2 星（選 2 碼）</option>
+            <option value="3" selected>3 星（選 3 碼）</option>
+            <option value="4">4 星（選 4 碼）</option>
+            <option value="5">5 星（選 5 碼）</option>
+            <option value="6">6 星（選 6 碼）</option>
+          </select>
+        </label>
+        <label class="field-check">
+          <input type="checkbox" id="autoStar">
+          <span>自動推薦星等</span>
+        </label>
+        <label class="field">
+          <span>選號策略</span>
+          <select id="strategy">
+            <option value="balanced">均衡混合</option>
+            <option value="hot">熱號優先</option>
+            <option value="cold">冷號回歸</option>
+            <option value="gap">遺漏補號</option>
+            <option value="oddEven">單雙平衡</option>
+            <option value="bigSmall">大小平衡</option>
+            <option value="random">純隨機</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>一次買幾組</span>
+          <select id="setCount">
+            <option value="1">1 組</option>
+            <option value="5" selected>5 組</option>
+            <option value="10">10 組</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>同一組連買幾期</span>
+          <select id="periodCount">
+            <option value="1" selected>1 期</option>
+            <option value="5">5 期</option>
+            <option value="10">10 期</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>倍率</span>
+          <select id="multiplier">
+            <option value="1" selected>1 倍（25 元／注）</option>
+            <option value="2">2 倍（50 元／注）</option>
+            <option value="4">4 倍（100 元／注）</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn-primary" id="predictBtn">產生投注單</button>
+      </div>
+
+      <div class="prediction-meta" id="predictionMeta" hidden>
+        <span id="metaStrategy"></span>
+        <span id="metaTime"></span>
+      </div>
+      <div class="cost-summary" id="costSummary"></div>
+      <div class="candidate-pool" id="candidatePool"></div>
+      <div class="prediction-sets" id="predictionSets" aria-live="polite"></div>
+
+      <div class="backtest-block" id="backtestPanel" hidden>
+        <h3>前一期回測 · 星等建議</h3>
+        <p class="backtest-lead">用剛剛產生的實際投注單，對前一期開獎做回測；並依近 20 期資料建議較適合的星等。</p>
+
+        <div class="prev-draw">
+          <span class="prev-draw-label" id="prevPeriodLabel">前一期</span>
+          <div class="balls" id="prevDrawBalls"></div>
+        </div>
+
+        <div class="hit-summary" id="hitSummary"></div>
+
+        <div class="matched-block">
+          <h4>各組對中號碼</h4>
+          <div id="matchedBalls"></div>
+        </div>
+
+        <div class="star-backtest">
+          <h4>近 20 期各星等回測（單注）</h4>
+          <div class="star-table" id="starTable"></div>
+        </div>
+
+        <div class="recommend-box" id="recommendBox"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="stats">
+      <div class="section-head">
+        <h2>冷熱號分析</h2>
+        <p>依據近 100 期模擬開獎，觀察號碼出現頻率與目前遺漏。</p>
+      </div>
+
+      <div class="stat-summary" id="statSummary"></div>
+
+      <div class="board-wrap">
+        <div class="board-legend">
+          <span><i class="dot hot"></i>熱號</span>
+          <span><i class="dot warm"></i>中溫</span>
+          <span><i class="dot cold"></i>冷號</span>
+        </div>
+        <div class="number-board" id="numberBoard" role="list"></div>
+      </div>
+
+      <div class="rank-grid">
+        <div class="rank-block">
+          <h3>熱門 Top 10</h3>
+          <ol id="hotList"></ol>
+        </div>
+        <div class="rank-block">
+          <h3>冷門 Top 10</h3>
+          <ol id="coldList"></ol>
+        </div>
+        <div class="rank-block">
+          <h3>遺漏最久</h3>
+          <ol id="gapList"></ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="trend">
+      <div class="section-head">
+        <h2>大小 · 單雙趨勢</h2>
+        <p>近 30 期開獎的大小與單雙分佈，輔助判斷下一期方向。</p>
+      </div>
+      <div class="trend-grid">
+        <div class="trend-card">
+          <h3>大小</h3>
+          <div class="bars" id="bigSmallBars"></div>
+          <p class="trend-hint" id="bigSmallHint"></p>
+        </div>
+        <div class="trend-card">
+          <h3>單雙</h3>
+          <div class="bars" id="oddEvenBars"></div>
+          <p class="trend-hint" id="oddEvenHint"></p>
+        </div>
+      </div>
+      <div class="history">
+        <h3>最近開獎（模擬）</h3>
+        <div class="history-list" id="historyList"></div>
+      </div>
+    </section>
+
+    <section class="disclaimer panel">
+      <p>本站使用本地模擬歷史資料做選號與回測示範。星號玩法每注選固定顆數；獎金以台彩一般期基本倍率估算（單注 25 元），僅供娛樂參考，不保證中獎。</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>賓果賓果預測</span>
+    <span>星號投注單 · 多組 · 連期</span>
+  </footer>
+
+  <script>
+(() => {
+  const TOTAL_NUMBERS = 80;
+  const DRAW_COUNT = 20;
+  const HISTORY_SIZE = 100;
+  const STAKE = 25;
+
+  /** 台彩賓果星號玩法基本倍率（一般期，非加碼；單注 25 元） */
+  const STAR_TABLE = {
+    1: { 1: 2 },
+    2: { 2: 3 },
+    3: { 2: 2, 3: 20 },
+    4: { 2: 1, 3: 2, 4: 40 },
+    5: { 3: 2, 4: 20, 5: 300 },
+    6: { 3: 1, 4: 2, 5: 20, 6: 1000 },
+  };
+
+  const strategyLabels = {
+    balanced: "均衡混合",
+    hot: "熱號優先",
+    cold: "冷號回歸",
+    gap: "遺漏補號",
+    oddEven: "單雙平衡",
+    bigSmall: "大小平衡",
+    random: "純隨機",
+  };
+
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return () => {
+      t += 0x6d2b79f5;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function shuffle(arr, rand = Math.random) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(rand() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function drawNumbers(rand) {
+    const pool = Array.from({ length: TOTAL_NUMBERS }, (_, i) => i + 1);
+    return shuffle(pool, rand).slice(0, DRAW_COUNT).sort((a, b) => a - b);
+  }
+
+  function buildHistory(seed = 20260731) {
+    const rand = mulberry32(seed);
+    const history = [];
+    const now = Date.now();
+    for (let i = HISTORY_SIZE; i >= 1; i -= 1) {
+      history.push({
+        period: String(114070000 + (HISTORY_SIZE - i + 1)).padStart(9, "0"),
+        time: new Date(now - i * 5 * 60 * 1000),
+        numbers: drawNumbers(rand),
+      });
+    }
+    return history;
+  }
+
+  function analyze(history) {
+    const freq = Array(TOTAL_NUMBERS + 1).fill(0);
+    const lastSeen = Array(TOTAL_NUMBERS + 1).fill(-1);
+
+    history.forEach((draw, idx) => {
+      draw.numbers.forEach((n) => {
+        freq[n] += 1;
+        lastSeen[n] = idx;
+      });
+    });
+
+    const latestIdx = history.length - 1;
+    const gaps = Array.from({ length: TOTAL_NUMBERS }, (_, i) => {
+      const n = i + 1;
+      const gap = lastSeen[n] < 0 ? history.length : latestIdx - lastSeen[n];
+      return { n, gap, freq: freq[n] };
+    });
+
+    const byFreq = gaps.slice().sort((a, b) => b.freq - a.freq || a.n - b.n);
+    const byGap = gaps.slice().sort((a, b) => b.gap - a.gap || a.n - b.n);
+
+    const recent = history.slice(-30);
+    let big = 0;
+    let small = 0;
+    let odd = 0;
+    let even = 0;
+    recent.forEach((draw) => {
+      draw.numbers.forEach((n) => {
+        if (n >= 41) big += 1;
+        else small += 1;
+        if (n % 2 === 1) odd += 1;
+        else even += 1;
+      });
+    });
+
+    return { freq, gaps, byFreq, byGap, big, small, odd, even, recent };
+  }
+
+  function weightedPick(candidates, weights, count, rand = Math.random) {
+    const chosen = new Set();
+    const pool = candidates.map((n, i) => ({ n, w: Math.max(weights[i], 0.01) }));
+
+    while (chosen.size < count && pool.length) {
+      const total = pool.reduce((s, p) => s + p.w, 0);
+      let r = rand() * total;
+      let idx = 0;
+      for (; idx < pool.length; idx += 1) {
+        r -= pool[idx].w;
+        if (r <= 0) break;
+      }
+      idx = Math.min(idx, pool.length - 1);
+      chosen.add(pool[idx].n);
+      pool.splice(idx, 1);
+    }
+    return [...chosen].sort((a, b) => a - b);
+  }
+
+  /** 產生候選號池，再從中抽出剛好 star 顆的一注 */
+  function buildCandidatePool(strategy, stats, poolSize = 24) {
+    const all = Array.from({ length: TOTAL_NUMBERS }, (_, i) => i + 1);
+    const freqMap = Object.fromEntries(stats.gaps.map((g) => [g.n, g.freq]));
+    const gapMap = Object.fromEntries(stats.gaps.map((g) => [g.n, g.gap]));
+    const size = Math.min(Math.max(poolSize, 8), TOTAL_NUMBERS);
+
+    if (strategy === "random") return shuffle(all).slice(0, size).sort((a, b) => a - b);
+    if (strategy === "hot") return weightedPick(all, all.map((n) => freqMap[n] ** 1.6 + 0.5), size);
+    if (strategy === "cold") {
+      const maxF = Math.max(...all.map((n) => freqMap[n]));
+      return weightedPick(all, all.map((n) => (maxF - freqMap[n] + 1) ** 1.4), size);
+    }
+    if (strategy === "gap") return weightedPick(all, all.map((n) => gapMap[n] ** 1.3 + 0.5), size);
+
+    if (strategy === "oddEven") {
+      const odds = all.filter((n) => n % 2 === 1);
+      const evens = all.filter((n) => n % 2 === 0);
+      const oddCount = Math.floor(size / 2);
+      const weight = (n) => freqMap[n] * 0.6 + gapMap[n] * 0.4 + 1;
+      return [
+        ...weightedPick(odds, odds.map(weight), oddCount),
+        ...weightedPick(evens, evens.map(weight), size - oddCount),
+      ].sort((a, b) => a - b);
+    }
+
+    if (strategy === "bigSmall") {
+      const smalls = all.filter((n) => n <= 40);
+      const bigs = all.filter((n) => n >= 41);
+      const smallCount = Math.floor(size / 2);
+      const weight = (n) => freqMap[n] * 0.55 + gapMap[n] * 0.45 + 1;
+      return [
+        ...weightedPick(smalls, smalls.map(weight), smallCount),
+        ...weightedPick(bigs, bigs.map(weight), size - smallCount),
+      ].sort((a, b) => a - b);
+    }
+
+    // balanced
+    const hotPool = stats.byFreq.slice(0, 30).map((x) => x.n);
+    const coldPool = stats.byFreq.slice(-30).map((x) => x.n);
+    const gapPool = stats.byGap.slice(0, 30).map((x) => x.n);
+    const a = Math.floor(size / 3);
+    const b = Math.floor(size / 3);
+    const c = size - a - b;
+    const picked = new Set([
+      ...weightedPick(hotPool, hotPool.map((n) => freqMap[n] + 1), a),
+      ...weightedPick(coldPool, coldPool.map((n) => 30 - freqMap[n]), b),
+      ...weightedPick(gapPool, gapPool.map((n) => gapMap[n] + 1), c),
+    ]);
+    while (picked.size < size) picked.add(1 + Math.floor(Math.random() * TOTAL_NUMBERS));
+    return [...picked].slice(0, size).sort((a, b) => a - b);
+  }
+
+  function scoreNumber(n, stats) {
+    const g = stats.gaps.find((x) => x.n === n);
+    return (g?.freq || 0) * 2 + (g?.gap || 0);
+  }
+
+  /** 從候選池抽出一注剛好 star 顆；可避開已用組合 */
+  function pickTicket(pool, star, stats, usedKeys = new Set(), rand = Math.random) {
+    const ranked = pool.slice().sort((a, b) => scoreNumber(b, stats) - scoreNumber(a, stats) || a - b);
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const weights = ranked.map((n, i) => 1 / (1 + i * 0.15) + (attempt > 10 ? rand() : 0));
+      const pick = weightedPick(ranked, weights, star, rand);
+      const key = pick.join("-");
+      if (!usedKeys.has(key)) {
+        usedKeys.add(key);
+        return pick;
+      }
+    }
+    const fallback = shuffle(pool, rand).slice(0, star).sort((a, b) => a - b);
+    usedKeys.add(fallback.join("-"));
+    return fallback;
+  }
+
+  function generateTickets(strategy, star, setCount, stats) {
+    const pool = buildCandidatePool(strategy, stats, Math.max(star * 4, 18));
+    const used = new Set();
+    const tickets = Array.from({ length: setCount }, (_, i) => ({
+      label: `第 ${i + 1} 組`,
+      numbers: pickTicket(pool, star, stats, used),
+    }));
+    return { pool, tickets };
+  }
+
+  function prizeForStar(star, hits) {
+    const table = STAR_TABLE[star];
+    if (!table) return 0;
+    return (table[hits] || 0) * STAKE;
+  }
+
+  function compareTicket(ticketNumbers, drawNumbers) {
+    const drawSet = new Set(drawNumbers);
+    const matched = ticketNumbers.filter((n) => drawSet.has(n));
+    return { matched, hitCount: matched.length, amount: prizeForStar(ticketNumbers.length, matched.length) };
+  }
+
+  function rollingStarStats(history, strategy, lookback = 20) {
+    const stars = [2, 3, 4, 5, 6];
+    const totals = Object.fromEntries(
+      stars.map((s) => [s, { profit: 0, wins: 0, fullHits: 0, trials: 0 }])
+    );
+
+    const start = Math.max(15, history.length - lookback);
+    for (let i = start; i < history.length; i += 1) {
+      const pastStats = analyze(history.slice(0, i));
+      stars.forEach((star) => {
+        const { tickets } = generateTickets(strategy, star, 1, pastStats);
+        const result = compareTicket(tickets[0].numbers, history[i].numbers);
+        const amount = result.amount;
+        totals[star].profit += amount - STAKE;
+        totals[star].trials += 1;
+        if (amount > 0) totals[star].wins += 1;
+        if (result.hitCount === star) totals[star].fullHits += 1;
+      });
+    }
+
+    const ranked = stars
+      .map((star) => {
+        const t = totals[star];
+        return {
+          star,
+          ...t,
+          avgProfit: t.trials ? t.profit / t.trials : 0,
+          winRate: t.trials ? t.wins / t.trials : 0,
+        };
+      })
+      .sort((a, b) => b.avgProfit - a.avgProfit || b.winRate - a.winRate || a.star - b.star);
+
+    let recommended = ranked[0];
+    const near = ranked.filter((r) => Math.abs(r.avgProfit - ranked[0].avgProfit) < 8);
+    if (near.some((r) => r.star === 3)) recommended = near.find((r) => r.star === 3);
+
+    return { ranked, recommended: recommended.star, trials: ranked[0]?.trials || 0 };
+  }
+
+  function formatTime(date) {
+    return date.toLocaleString("zh-TW", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function formatMoney(n) {
+    const sign = n > 0 ? "+" : "";
+    return `${sign}${n.toLocaleString("zh-TW")} 元`;
+  }
+
+  function renderBalls(numbers, className = "ball", matchedSet = null) {
+    return numbers
+      .map((n, i) => {
+        const classes = [className];
+        if (n >= 41) classes.push("big");
+        if (n % 2 === 1) classes.push("odd");
+        if (matchedSet) {
+          if (matchedSet.has(n)) classes.push("hit");
+          else classes.push("miss");
+        }
+        return `<span class="${classes.join(" ")}" style="animation-delay:${i * 0.03}s">${String(n).padStart(2, "0")}</span>`;
+      })
+      .join("");
+  }
+
+  function heatClass(freq, min, max) {
+    const t = max === min ? 0.5 : (freq - min) / (max - min);
+    if (t >= 0.66) return "hot";
+    if (t >= 0.33) return "warm";
+    return "cold";
+  }
+
+  function renderStats(history, stats) {
+    const freqs = stats.gaps.map((g) => g.freq);
+    const min = Math.min(...freqs);
+    const max = Math.max(...freqs);
+
+    document.getElementById("statSummary").innerHTML = `
+      <div class="summary-chip"><span>模擬期數</span><strong>${history.length}</strong></div>
+      <div class="summary-chip"><span>平均出現</span><strong>${(DRAW_COUNT * history.length / TOTAL_NUMBERS).toFixed(1)}</strong></div>
+      <div class="summary-chip"><span>最熱號碼</span><strong>${String(stats.byFreq[0].n).padStart(2, "0")}</strong></div>
+    `;
+
+    document.getElementById("numberBoard").innerHTML = stats.gaps
+      .map((g) => {
+        const cls = heatClass(g.freq, min, max);
+        return `<div class="num-cell ${cls}" role="listitem" aria-label="號碼 ${g.n}">
+          ${String(g.n).padStart(2, "0")}
+          <span class="tip">出現 ${g.freq} 次 · 遺漏 ${g.gap} 期</span>
+        </div>`;
+      })
+      .join("");
+
+    const fillList = (id, items, formatter) => {
+      document.getElementById(id).innerHTML = items
+        .slice(0, 10)
+        .map((item) => `<li>${formatter(item)}</li>`)
+        .join("");
+    };
+
+    fillList("hotList", stats.byFreq, (x) => `<em>${String(x.n).padStart(2, "0")}</em> · ${x.freq} 次`);
+    fillList("coldList", stats.byFreq.slice().reverse(), (x) => `<em>${String(x.n).padStart(2, "0")}</em> · ${x.freq} 次`);
+    fillList("gapList", stats.byGap, (x) => `<em>${String(x.n).padStart(2, "0")}</em> · 遺漏 ${x.gap} 期`);
+  }
+
+  function renderTrend(stats) {
+    const totalBS = stats.big + stats.small;
+    const totalOE = stats.odd + stats.even;
+    const pct = (v, t) => (t ? Math.round((v / t) * 100) : 0);
+    const bigPct = pct(stats.big, totalBS);
+    const smallPct = pct(stats.small, totalBS);
+    const oddPct = pct(stats.odd, totalOE);
+    const evenPct = pct(stats.even, totalOE);
+
+    document.getElementById("bigSmallBars").innerHTML = `
+      <div class="bar-row"><span>大</span><div class="bar-track"><div class="bar-fill" data-width="${bigPct}"></div></div><span>${bigPct}%</span></div>
+      <div class="bar-row"><span>小</span><div class="bar-track"><div class="bar-fill alt" data-width="${smallPct}"></div></div><span>${smallPct}%</span></div>
+    `;
+    document.getElementById("oddEvenBars").innerHTML = `
+      <div class="bar-row"><span>單</span><div class="bar-track"><div class="bar-fill" data-width="${oddPct}"></div></div><span>${oddPct}%</span></div>
+      <div class="bar-row"><span>雙</span><div class="bar-track"><div class="bar-fill alt" data-width="${evenPct}"></div></div><span>${evenPct}%</span></div>
+    `;
+
+    document.getElementById("bigSmallHint").textContent =
+      bigPct === smallPct
+        ? "近 30 期大小相當，可考慮大小平衡選號。"
+        : bigPct > smallPct
+          ? "近 30 期偏「大」，可適度提高 41–80。"
+          : "近 30 期偏「小」，可適度提高 01–40。";
+
+    document.getElementById("oddEvenHint").textContent =
+      oddPct === evenPct
+        ? "近 30 期單雙相當，可考慮單雙平衡選號。"
+        : oddPct > evenPct
+          ? "近 30 期偏「單」，可適度提高單數號碼。"
+          : "近 30 期偏「雙」，可適度提高雙數號碼。";
+
+    requestAnimationFrame(() => {
+      document.querySelectorAll(".bar-fill").forEach((el) => {
+        el.style.width = `${el.dataset.width}%`;
+      });
+    });
+
+    document.getElementById("historyList").innerHTML = stats.recent
+      .slice()
+      .reverse()
+      .slice(0, 8)
+      .map(
+        (draw) => `
+        <div class="history-item">
+          <div class="period">第 ${draw.period.slice(-4)} 期<br><small style="color:var(--muted);font-weight:500">${formatTime(draw.time)}</small></div>
+          <div class="mini-balls">${draw.numbers.map((n) => `<span class="mini-ball">${String(n).padStart(2, "0")}</span>`).join("")}</div>
+        </div>`
+      )
+      .join("");
+  }
+
+  function getForm() {
+    const autoStar = document.getElementById("autoStar").checked;
+    return {
+      strategy: document.getElementById("strategy").value || "balanced",
+      star: Number(document.getElementById("starCount").value) || 3,
+      autoStar,
+      setCount: Math.max(1, Number(document.getElementById("setCount").value) || 5),
+      periods: Math.max(1, Number(document.getElementById("periodCount").value) || 1),
+      multiplier: Math.max(1, Number(document.getElementById("multiplier").value) || 1),
+    };
+  }
+
+  function renderTickets(history, stats) {
+    const form = getForm();
+    const rolling = rollingStarStats(history, form.strategy, 20);
+    const star = form.autoStar ? rolling.recommended : form.star;
+    if (form.autoStar) {
+      document.getElementById("starCount").value = String(star);
+    }
+
+    const { pool, tickets } = generateTickets(form.strategy, star, form.setCount, stats);
+    const prev = history[history.length - 1];
+    const ticketResults = tickets.map((t) => {
+      const cmp = compareTicket(t.numbers, prev.numbers);
+      return { ...t, ...cmp };
+    });
+
+    const singleCost = STAKE * form.multiplier;
+    const totalCost = singleCost * form.setCount * form.periods;
+    const prevPrizePerPeriod = ticketResults.reduce((s, t) => s + t.amount, 0) * form.multiplier;
+    const prevProfitOnePeriod = prevPrizePerPeriod - singleCost * form.setCount;
+
+    document.getElementById("predictionMeta").hidden = false;
+    document.getElementById("metaStrategy").textContent =
+      `玩法：${star} 星 · 策略：${strategyLabels[form.strategy]}${form.autoStar ? "（自動推薦星等）" : ""}`;
+    document.getElementById("metaTime").textContent = `產生時間：${new Date().toLocaleString("zh-TW")}`;
+
+    document.getElementById("costSummary").innerHTML = `
+      <div class="summary-chip"><span>投注內容</span><strong>${star} 星 × ${form.setCount} 組</strong><small>連買 ${form.periods} 期 · ${form.multiplier} 倍</small></div>
+      <div class="summary-chip"><span>單注金額</span><strong>${singleCost.toLocaleString("zh-TW")} 元</strong><small>25 × ${form.multiplier} 倍</small></div>
+      <div class="summary-chip"><span>總投注金額</span><strong class="cost-total">${totalCost.toLocaleString("zh-TW")} 元</strong><small>${form.setCount} 組 × ${form.periods} 期 × ${form.multiplier} 倍</small></div>
+    `;
+
+    document.getElementById("candidatePool").innerHTML = `
+      <h4>候選號池（參考，不用全買）</h4>
+      <div class="balls">${renderBalls(pool, "ball mini")}</div>
+    `;
+
+    document.getElementById("predictionSets").innerHTML = ticketResults
+      .map((t, idx) => {
+        const matchedSet = new Set(t.matched);
+        const prizeText = t.amount > 0
+          ? `前一期回測：中 ${t.hitCount} → ${t.amount * form.multiplier} 元`
+          : `前一期回測：中 ${t.hitCount} → 未中獎`;
+        return `
+        <article class="set-card ticket-card" style="animation-delay:${idx * 0.05}s">
+          <h3>
+            <span>${t.label} · ${star} 星</span>
+            <span class="set-hit">${prizeText}</span>
+          </h3>
+          <div class="balls">${renderBalls(t.numbers, "ball", matchedSet)}</div>
+          <p class="ticket-line">可直接跟彩券行說：買 ${star} 星，號碼 ${t.numbers.map((n) => String(n).padStart(2, "0")).join(" ")}，${form.multiplier} 倍，連 ${form.periods} 期</p>
+        </article>`;
+      })
+      .join("");
+
+    const rollingRec = rolling.ranked.find((r) => r.star === rolling.recommended);
+    document.getElementById("backtestPanel").hidden = false;
+    document.getElementById("prevPeriodLabel").textContent =
+      `第 ${prev.period.slice(-4)} 期 · ${formatTime(prev.time)}`;
+    document.getElementById("prevDrawBalls").innerHTML = renderBalls(prev.numbers, "ball mini");
+
+    const winSets = ticketResults.filter((t) => t.amount > 0).length;
+    document.getElementById("hitSummary").innerHTML = `
+      <div class="summary-chip">
+        <span>前一期有獎組數</span>
+        <strong class="hit-num">${winSets}</strong>
+        <small>/ ${form.setCount} 組</small>
+      </div>
+      <div class="summary-chip">
+        <span>前一期回測獎金</span>
+        <strong>${prevPrizePerPeriod.toLocaleString("zh-TW")} 元</strong>
+        <small>以本次 ${form.setCount} 組、${form.multiplier} 倍估算一期</small>
+      </div>
+      <div class="summary-chip ${prevProfitOnePeriod >= 0 ? "recommend" : ""}">
+        <span>前一期回測損益</span>
+        <strong>${formatMoney(prevProfitOnePeriod)}</strong>
+        <small>尚未乘上連買期數</small>
+      </div>
+    `;
+
+    document.getElementById("matchedBalls").innerHTML = ticketResults
+      .map((t) => {
+        if (!t.matched.length) {
+          return `<div class="match-row"><span class="match-label">${t.label}</span><span class="empty-hint">沒對中</span></div>`;
+        }
+        return `<div class="match-row"><span class="match-label">${t.label} 中 ${t.hitCount}</span><div class="balls">${renderBalls(t.matched, "ball")}</div></div>`;
+      })
+      .join("");
+
+    const starRows = [2, 3, 4, 5, 6].map((s) => {
+      const row = rolling.ranked.find((r) => r.star === s);
+      return {
+        star: s,
+        avgProfit: row?.avgProfit || 0,
+        winRate: row?.winRate || 0,
+        fullRate: row ? row.fullHits / Math.max(row.trials, 1) : 0,
+      };
+    });
+
+    document.getElementById("starTable").innerHTML = `
+      <div class="star-table-head">
+        <span>星等</span><span>有獎率</span><span>全中率</span><span>平均損益／注</span>
+      </div>
+      ${starRows
+        .map((row) => {
+          const cls = row.avgProfit > 0 ? "profit" : row.avgProfit === 0 ? "even" : "loss";
+          const mark = row.star === rolling.recommended ? " best" : "";
+          const current = row.star === star ? " current" : "";
+          return `<div class="star-table-row ${cls}${mark}${current}">
+            <span>${row.star} 星${row.star === star ? " ←本次" : ""}</span>
+            <span>${(row.winRate * 100).toFixed(0)}%</span>
+            <span>${(row.fullRate * 100).toFixed(0)}%</span>
+            <span>${formatMoney(Math.round(row.avgProfit))}</span>
+          </div>`;
+        })
+        .join("")}
+    `;
+
+    document.getElementById("recommendBox").innerHTML = `
+      <div class="recommend-badge">${rolling.recommended} 星</div>
+      <div class="recommend-copy">
+        <h3>資料建議：玩 ${rolling.recommended} 星</h3>
+        <p>依「${strategyLabels[form.strategy]}」近 ${rolling.trials} 期回測，
+          ${rolling.recommended} 星平均每注損益 <strong>${formatMoney(Math.round(rollingRec.avgProfit))}</strong>，
+          有獎率 ${(rollingRec.winRate * 100).toFixed(0)}%。</p>
+        <p>你目前設定是 <strong>${star} 星 × ${form.setCount} 組 × ${form.periods} 期 × ${form.multiplier} 倍</strong>，
+          總金額 <strong>${totalCost.toLocaleString("zh-TW")} 元</strong>。
+          ${form.periods > 1 ? `同一組號碼會連買 ${form.periods} 期（約 ${form.periods * 5} 分鐘）。` : "只買一期。"}</p>
+        <p class="recommend-note">每組剛好 ${star} 個號碼，可直接照「第 N 組」跟彩券行下單；綠框是前一期有對中的號碼。</p>
+      </div>
+    `;
+  }
+
+  function init() {
+    const history = buildHistory();
+    const stats = analyze(history);
+    renderStats(history, stats);
+    renderTrend(stats);
+
+    const rerun = () => renderTickets(history, stats);
+    document.getElementById("predictBtn").addEventListener("click", rerun);
+    document.getElementById("autoStar").addEventListener("change", (e) => {
+      document.getElementById("starCount").disabled = e.target.checked;
+      rerun();
+    });
+    ["strategy", "starCount", "setCount", "periodCount", "multiplier"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", rerun);
+    });
+
+    rerun();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+
+  </script>
+</body>
+</html>
